@@ -3,9 +3,12 @@
 #include <Arduino.h>
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
+#include "HCMS39xx.h"
 
-const char* apSSID = "MazeSliderMachine";
+
+const char* apSSID = "ElecTime";
 const char* apPassword = "12345678";
+const char* webServiceUrl = "http://example.com/api/data";
 
 WifiManager wifiManager(apSSID, apPassword);
 
@@ -15,91 +18,10 @@ WifiManager wifiManager(apSSID, apPassword);
 uint64_t lastTimestamp = 0;
 float lastFrequency = 0;
 
-
-// --------------------- STRUCTURES ---------------------
-
-struct FreqPoint {
-  uint64_t timestamp; // en ms
-  float frequency;
-};
-
-// --------------------- BUFFER CIRCULAIRE ---------------------
-
-const int MAX_BUFFER = 128;
-FreqPoint buffer[MAX_BUFFER];
-int head = 0;
-int tail = 0;
-
-bool bufferIsEmpty() {
-  return head == tail;
-}
-
-bool bufferIsFull() {
-  return ((tail + 1) % MAX_BUFFER) == head;
-}
-
-void bufferPush(FreqPoint pt) {
-  if (!bufferIsFull()) {
-    buffer[tail] = pt;
-    tail = (tail + 1) % MAX_BUFFER;
-  } else {
-    Serial.println("⚠️ Buffer plein, données perdues !");
-  }
-}
-
-bool bufferTop(FreqPoint &pt) {
-  if (!bufferIsEmpty()) {
-    pt = buffer[head];
-    head = (head + 1) % MAX_BUFFER;
-    return true;
-  }
-  return false;
-}
-
-bool bufferPeek(FreqPoint &pt) {
-  if (!bufferIsEmpty()) {
-    pt = buffer[tail];
-    return true;
-  }
-  return false;
-}
-
-int bufferCount() 
-{
-  if (tail >= head) 
-  {
-    return tail - head;
-  } 
-  else 
-  {
-    return MAX_BUFFER - head + tail;
-  }
-}
-
-// --------------------- INTERPOLATION ---------------------
-uint64_t latestBufferedTimestamp = 0;  // dernier timestamp déjà dans le buffer
-
-void interpolateAndBuffer(uint64_t t1, float f1, uint64_t t2, float f2) {
-  int steps = (t2 - t1) / 1000;
-  printf("Interpolation de (%llu;%f) à (%llu;%f) (%d étapes)\n", t1, f1, t2, f2, steps);
-  for (int i = 1; i <= steps; i++) {
-    uint64_t ts = t1 + i * 1000;
-
-    if (ts <= latestBufferedTimestamp) {
-      continue; // Ne pas ajouter de doublon
-    }
-
-    FreqPoint pt;
-    pt.timestamp = ts;
-    pt.frequency = f1 + ((f2 - f1) * i / steps);
-    bufferPush(pt);
-
-    // Mettre à jour le timestamp du dernier point stocké
-    if (ts > latestBufferedTimestamp) {
-      latestBufferedTimestamp = ts;
-    }
-  }
-}
+// See https://github.com/Andy4495/HCMS39xx/blob/main/README.md#hardware-connections for wiring info
+// HCMS39xx(uint8_t num_chars, uint8_t data_pin, uint8_t rs_pin, uint8_t clk_pin, 
+//          uint8_t ce_pin, uint8_t blank_pin)
+HCMS39xx display(8, 6, 7, 8, 9, 10); // osc_select_pin tied high, not connected to microcontroller
 
 void setup() 
 {
@@ -111,85 +33,67 @@ void setup()
   wifiManager.begin();
   Serial.begin(115200);
   Serial.println("Start");
+
+  display.begin();
+  display.clear();
+  display.print("START"); // Affiche "START" au démarrage
+}
+
+void fetchWebServiceData() 
+{
+  if (wifiManager.checkWiFiConnection()) 
+  {
+    HTTPClient http;
+    http.begin(webServiceUrl); // Initialise la connexion HTTP
+    int httpCode = http.GET(); // Effectue une requête GET
+
+    if (httpCode > 0) 
+    { // Vérifie si la requête a réussi
+      if (httpCode == HTTP_CODE_OK) 
+      {
+        String payload = http.getString(); // Récupère la réponse JSON
+        Serial.println("Réponse du serveur :");
+        Serial.println(payload);
+
+        // Parse le JSON
+        JsonDocument doc;
+        DeserializationError error = deserializeJson(doc, payload);
+
+        if (!error) 
+        {
+          lastTimestamp = doc["time_stamp"];
+          lastFrequency = doc["frequency"];
+          Serial.print("Timestamp : ");
+          Serial.println(lastTimestamp);
+          Serial.print("Frequency : ");
+          Serial.println(lastFrequency);
+        } 
+        else 
+        {
+          Serial.println("Erreur de parsing JSON");
+        }
+      }
+    } 
+    else 
+    {
+      Serial.print("Erreur HTTP : ");
+      Serial.println(httpCode);
+    }
+    http.end(); // Ferme la connexion HTTP
+  }
+   else
+   {
+    Serial.println("Pas de connexion WiFi");
+  }
 }
 
 void loop() 
 {
-  static unsigned long lastFetch = 0;  
-  static unsigned long lastMillisPotentiometer = 0;
-  static unsigned char hb = 0;
-  const char* apiUrl = "https://data.swissgrid.ch/charts/frequency/?lang=fr";
+  static unsigned long lastFetch = 0;
 
-  if (millis() - lastFetch > 1000)
-  {
+  if (millis() - lastFetch > 500) { // Récupère les données toutes les 500ms
     lastFetch = millis();
-
-    if(wifiManager.checkWiFiConnection())
-    {
-      Serial.println("o");
-      HTTPClient http;
-      http.begin(apiUrl);
-      int httpCode = http.GET();
-
-      if (httpCode == 200) 
-      {
-        String payload = http.getString();
-        DynamicJsonDocument doc(20000);
-        DeserializationError error = deserializeJson(doc, payload);
-        if (!error) 
-        {
-          JsonArray data = doc["data"]["series"][0]["data"].as<JsonArray>();
-          uint64_t ts = data[data.size() - 1][0].as<uint64_t>();
-          float freq = data[data.size() - 1][1].as<float>();
-
-          FreqPoint ptPeek;
-          if(bufferTop(ptPeek))
-          {
-            if(ts > ptPeek.timestamp)
-            {
-              printf("Nouveau point %llu / %llu: \n", ptPeek.timestamp, ts);
-              interpolateAndBuffer(ptPeek.timestamp, ptPeek.frequency, ts, freq);  
-            }
-          }
-          else // buffer empty
-          {
-            printf("premier point %llu: \n", ts);
-            FreqPoint pt;
-            pt.timestamp = ts;
-            pt.frequency = freq;
-            bufferPush(pt);
-          }
-        } 
-        else 
-        {
-          Serial.println("Erreur JSON");
-        }
-      } 
-      else 
-      {
-        Serial.printf("Erreur HTTP : %d\n", httpCode);
-      }
-      http.end();
-    }
-    else
-    {
-      Serial.println("-");
-    }
-    Serial.println(hb++);
-  // put your main code here, to run repeatedly:
-  }
-
-  static unsigned long lastDisplay = 0;
-    // --- 2. Affichage de la fréquence toutes les 1 sec ---
-  if (millis() - lastDisplay >= 1000) {
-    lastDisplay = millis();
-
-    FreqPoint pt;
-    if (bufferCount() > 10 && bufferPop(pt)) {
-      Serial.printf("d: %llu -> %.3f Hz (buffer), buf=%d\n", pt.timestamp, pt.frequency, bufferCount());
-    } else {
-      Serial.println("⏳ En attente de nouvelles données...");
-    }
+    fetchWebServiceData();
   }
   delay(100);
 }
