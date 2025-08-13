@@ -10,6 +10,10 @@ class GaugeFreqMeter
 
         GaugeFreqMeter();
 
+        GaugeFreqMeter(const unsigned char pinStep,
+                    const unsigned char pinDir,
+                    const unsigned char pinReset );
+
         void begin( const unsigned char pinStep,
                     const unsigned char pinDir,
                     const unsigned char pinReset );

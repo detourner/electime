@@ -10,6 +10,13 @@ GaugeFreqMeter::GaugeFreqMeter()
 
 }
 
+GaugeFreqMeter::GaugeFreqMeter(const unsigned char pinStep,
+                               const unsigned char pinDir,
+                               const unsigned char pinReset )
+{
+    _gauge.begin(pinStep, pinDir, pinReset);
+}
+
 void GaugeFreqMeter::begin(    const unsigned char pinStep,
                                 const unsigned char pinDir,
                                 const unsigned char pinReset )
