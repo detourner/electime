@@ -9,14 +9,14 @@ The device:
 - Shows the current time (HH:MM:SS) on an HP HCMS-3977 alphanumeric display.
 
 ## Features
-- Stepper motor control for analog gauge display.
+- Stepper motor control for analog gauge display via X12.017.
 - Accurate timekeeping with synchronized updates.
 - Clear alphanumeric display for the clock.
 - Compact ESP32-C3 platform with Wi-Fi capabilities for potential network sync (NTP).
 
 ## Hardware
 - Seeed Studio XIAO ESP32-C3
-- Analog needle gauge + stepper motor
+- Analog needle gauge stepper motor X270168 
 - HP HCMS-3977 4-character alphanumeric display
 - Power supply by USBC & basic wiring
 
@@ -40,6 +40,12 @@ The device:
 - On power-up, the device starts measuring the mains frequency.
 - The analog gauge displays the frequency in real time.
 - The alphanumeric display shows the current time in HH:MM:SS format.
+
+## Reference
+- https://wiki.seeedstudio.com/XIAO_ESP32C3_Getting_Started/
+- https://guy.carpenter.id.au/gaugette/2017/04/29/switecx25-quad-driver-tests/
+- https://github.com/Andy4495/HCMS39xx
+- https://github.com/detourner/GridFreqMonitor
 
 ## License
 This project is licensed under the MIT License – see the LICENSE file for details.
