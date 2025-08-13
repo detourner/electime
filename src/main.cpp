@@ -4,6 +4,7 @@
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
 #include "HCMS39xx.h"
+#include "gauge_freq_meter.h"
 
 
 const char* apSSID = "ElecTime";
@@ -11,6 +12,7 @@ const char* apPassword = "12345678";
 const char* webServiceUrl = "http://example.com/api/data";
 
 WifiManager wifiManager(apSSID, apPassword);
+GaugeFreqMeter gaugeFreqMeter;
 
 
 // --------------------- VARIABLES GLOBALES ---------------------
@@ -37,6 +39,9 @@ void setup()
   display.begin();
   display.clear();
   display.print("START"); // Affiche "START" au démarrage
+
+  gaugeFreqMeter.begin(2, 3, 4); // Initialisation du compteur de fréquence avec les pins appropriées
+  gaugeFreqMeter.reset(); // Réinitialise le compteur de fréquence
 }
 
 void fetchWebServiceData() 
@@ -67,6 +72,7 @@ void fetchWebServiceData()
           Serial.println(lastTimestamp);
           Serial.print("Frequency : ");
           Serial.println(lastFrequency);
+          gaugeFreqMeter.setPosition(lastFrequency); // Met à jour le compteur de fréquence avec la nouvelle valeur
         } 
         else 
         {
@@ -81,8 +87,8 @@ void fetchWebServiceData()
     }
     http.end(); // Ferme la connexion HTTP
   }
-   else
-   {
+  else
+  {
     Serial.println("Pas de connexion WiFi");
   }
 }
