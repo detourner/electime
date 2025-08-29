@@ -38,7 +38,7 @@ void SwitecX12::irqTimerCallback(void * context)
     // 17us to execute advance();
     SwitecX12 * ptrSwitecX12 = (SwitecX12 *) context;
     ptrSwitecX12->advance();
-
+    
 }
 
 
@@ -123,7 +123,7 @@ void SwitecX12::zero()
 
 void SwitecX12::advance(void)
 {
- if(stopped == true)
+  if(stopped == true)
  {
      return;
  }
@@ -187,7 +187,7 @@ void SwitecX12::advance(void)
 void SwitecX12::setPosition(unsigned int pos)
 {
   // pos is unsigned so don't need to check for <0
-  esp_timer_stop(periodic_timer);
+  //esp_timer_stop(periodic_timer);
 
   if (pos >= steps) pos = steps-1;
   targetStep = pos;

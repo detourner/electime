@@ -4,7 +4,7 @@
 #include <WebSocketsClient.h>
 #include <ArduinoJson.h>
 #include "HCMS39xx.h"
-//#include "gauge_freq_meter.h"
+#include "gauge_freq_meter.h"
 #include <time.h>
 
 // --------------------- CONFIGURATION ---------------------
@@ -27,7 +27,7 @@ HCMS39xx display(8, D10, D2, D8, D0, D3); // osc_select_pin tied high, not conne
 WifiManager wifiManager(apSSID, apPassword);
 
 // GaugeFreqMeter(uint8_t pinStep, uint8_t pinDir, uint8_t pinReset)
-//GaugeFreqMeter gaugeFreqMeter(D5, D6, D1);
+GaugeFreqMeter gaugeFreqMeter;
 
 // --------------------- UTILITY FUNCTIONS ---------------------
 
@@ -98,7 +98,7 @@ void fetchWebServiceData(uint8_t * payload, size_t length)
         Serial.println(lastTimestamp);
         Serial.print("New Frequency: ");
         Serial.println(frequency);
-        //gaugeFreqMeter.setPosition(frequency); // Update the frequency gauge with the new value
+        gaugeFreqMeter.setPosition(frequency); // Update the frequency gauge with the new value
 
         updateDisplayWithCurrentTime(true, frequency); // Update the display with the new frequency
       } 
@@ -165,12 +165,7 @@ void setup()
   // Configure the timezone for Paris (UTC+1 with automatic daylight saving time adjustment)
   configTime(3600, 3600, "pool.ntp.org", "time.nist.gov", "time.google.com"); // UTC+1 offset, daylight saving enabled
 
-  pinMode(D1, OUTPUT);
-  digitalWrite(D1, LOW);
-
-  delay(100);
-
-  digitalWrite(D1, HIGH);
+  gaugeFreqMeter.begin(D4, D5, D1);
 
   delay(100);
 
@@ -179,11 +174,12 @@ void setup()
   display.displayUnblank();
   display.print("START"); // Display "START" at startup
 
-  //gaugeFreqMeter.reset(); // Reset the frequency gauge
+
+  gaugeFreqMeter.reset(); // Reset the frequency gauge
 
   webSocket.begin(websocketServer, websocketPort, "/"); // Start the WebSocket client
   webSocket.onEvent(webSocketEvent);
-  webSocket.setReconnectInterval(1000); // Reconnect every 5 seconds if disconnected
+  webSocket.setReconnectInterval(5000); // Reconnect every 5 seconds if disconnected
 }
 
 void loop() 
@@ -196,7 +192,6 @@ void loop()
   if (millis() - lastFetch > 500) { // Fetch data every 500ms
     if(wifiManager.checkWiFiConnection())
     {
-      
       //Serial.println("WiFi connected");
     }
     else
