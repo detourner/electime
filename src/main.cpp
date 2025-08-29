@@ -4,7 +4,7 @@
 #include <WebSocketsClient.h>
 #include <ArduinoJson.h>
 #include "HCMS39xx.h"
-#include "gauge_freq_meter.h"
+//#include "gauge_freq_meter.h"
 #include <time.h>
 
 // --------------------- CONFIGURATION ---------------------
@@ -13,7 +13,7 @@ const char* apSSID = "ElecTime";
 const char* apPassword = "12345678";
 
 // WebSocket server configuration
-const char* websocketServer = "192.168.1.100"; // Replace with your WebSocket server IP address
+const char* websocketServer = "192.168.1.22"; // Replace with your WebSocket server IP address
 const int websocketPort = 8765;               // WebSocket server port
 
 // --------------------- GLOBAL VARIABLES ---------------------
@@ -27,7 +27,7 @@ HCMS39xx display(8, D10, D2, D8, D0, D3); // osc_select_pin tied high, not conne
 WifiManager wifiManager(apSSID, apPassword);
 
 // GaugeFreqMeter(uint8_t pinStep, uint8_t pinDir, uint8_t pinReset)
-GaugeFreqMeter gaugeFreqMeter(D5, D6, D1);
+//GaugeFreqMeter gaugeFreqMeter(D5, D6, D1);
 
 // --------------------- UTILITY FUNCTIONS ---------------------
 
@@ -47,9 +47,8 @@ unsigned long updateDisplayWithCurrentTime(bool needFreqUpdate, float frequency)
 
   // Calculate the drift in seconds over a year
   float frequencyDeviation = lastFrequency - 50.0; // Difference from 50 Hz
-  float secondsPerYear = frequencyDeviation * 365 * 60 * 60; // Total drift in seconds over a year
-  Serial.print("Drift in seconds per day: ");
-  Serial.println(secondsPerYear);
+  int secondsPerYear = (int)(frequencyDeviation * 365.0 * 60.0 * 60.0); // Total drift in seconds over a year
+  
 
   time_t now = time(nullptr); // Get the current time
   now += secondsPerYear; // Add the calculated drift
@@ -57,7 +56,13 @@ unsigned long updateDisplayWithCurrentTime(bool needFreqUpdate, float frequency)
   localtime_r(&now, &timeinfo); // Convert to local time
 
   char timeString[9]; // Format HH-MM-SS
-  strftime(timeString, sizeof(timeString), "%H-%M-%S", &timeinfo);
+  strftime(timeString, sizeof(timeString), "%H:%M:%S", &timeinfo);
+  
+  Serial.print("Drift in seconds per day: ");
+  Serial.print(secondsPerYear);
+  Serial.print(" time: ");
+  Serial.println(timeString);
+
   display.clear();
   display.print(timeString); // Display the current time on the display
 
@@ -93,7 +98,7 @@ void fetchWebServiceData(uint8_t * payload, size_t length)
         Serial.println(lastTimestamp);
         Serial.print("New Frequency: ");
         Serial.println(frequency);
-        gaugeFreqMeter.setPosition(frequency); // Update the frequency gauge with the new value
+        //gaugeFreqMeter.setPosition(frequency); // Update the frequency gauge with the new value
 
         updateDisplayWithCurrentTime(true, frequency); // Update the display with the new frequency
       } 
@@ -123,7 +128,6 @@ void webSocketEvent(WStype_t type, uint8_t * payload, size_t length)
       webSocket.sendTXT("Connected");
       break;
     case WStype_TEXT:
-      Serial.printf("[WSc] Received text: %s\n", payload);
       fetchWebServiceData(payload, length); // Fetch data from the web service and update the frequency display
         
       break;
@@ -147,18 +151,35 @@ void webSocketEvent(WStype_t type, uint8_t * payload, size_t length)
 
 void setup() 
 {
-  wifiManager.begin();
+  
   Serial.begin(115200);
   Serial.println("Start");
+
+  wifiManager.begin();
+
+  // clear the NVS partition (and all preferences stored in it)
+  //nvs_flash_erase(); // erase the NVS partition and...
+  //nvs_flash_init(); // initialize the NVS partition.
+
 
   // Configure the timezone for Paris (UTC+1 with automatic daylight saving time adjustment)
   configTime(3600, 3600, "pool.ntp.org", "time.nist.gov", "time.google.com"); // UTC+1 offset, daylight saving enabled
 
+  pinMode(D1, OUTPUT);
+  digitalWrite(D1, LOW);
+
+  delay(100);
+
+  digitalWrite(D1, HIGH);
+
+  delay(100);
+
   display.begin();
   display.clear();
+  display.displayUnblank();
   display.print("START"); // Display "START" at startup
 
-  gaugeFreqMeter.reset(); // Reset the frequency gauge
+  //gaugeFreqMeter.reset(); // Reset the frequency gauge
 
   webSocket.begin(websocketServer, websocketPort, "/"); // Start the WebSocket client
   webSocket.onEvent(webSocketEvent);
@@ -170,10 +191,13 @@ void loop()
   static unsigned long lastFetch = 0;
   static unsigned long lastDisplayUpdate = 0;
 
+  
+
   if (millis() - lastFetch > 500) { // Fetch data every 500ms
     if(wifiManager.checkWiFiConnection())
     {
-      Serial.println("WiFi connected");
+      
+      //Serial.println("WiFi connected");
     }
     else
     {
@@ -186,6 +210,6 @@ void loop()
   {
     lastDisplayUpdate = updateDisplayWithCurrentTime(false, 0.0f); // Update the display with the current time
   }
-
+  webSocket.loop(); // Handle WebSocket events
   delay(100);
 }
