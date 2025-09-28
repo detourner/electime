@@ -17,6 +17,9 @@ const char* apPassword = "12345678";
 const char* serverName = "electime";  // Replace with your WebSocket server name
 const int websocketPort = 8765;       // WebSocket server port
 
+const float minFrequency = 49.80f; // Minimum valid frequency
+const float maxFrequency = 50.20f; // Maximum valid frequency
+
 // --------------------- GLOBAL VARIABLES ---------------------
 
 WebSocketsClient webSocket;
@@ -88,6 +91,15 @@ void fetchWebServiceData(uint8_t * payload, size_t length)
     {
       uint64_t newTimestamp = doc["time_stamp"];
       float frequency = doc["frequency"];
+
+      // Integrity check for frequency
+      if (frequency < minFrequency || frequency > maxFrequency) 
+      {
+        Serial.print("Error: frequency out of range (");
+        Serial.print(frequency);
+        Serial.println(" Hz)");
+        return; // Ignore the received value
+      }
 
       // Update only if the timestamp has changed
       static uint64_t lastTimestamp = 0;
