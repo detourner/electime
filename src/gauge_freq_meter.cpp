@@ -1,9 +1,9 @@
 #include "gauge_freq_meter.h"
 
-#define STEP_FREQ_MIN    49.90  
-#define STEP_FREQ_MAX    50.10
-#define STEP_SETP_MIN    0
-#define STEP_STEP_MAX    3500
+#define STEP_FREQ_MIN    49.80f  
+#define STEP_FREQ_MAX    50.20f
+#define STEP_SETP_MIN    207
+#define STEP_STEP_MAX    3432
 
 GaugeFreqMeter::GaugeFreqMeter()
 {
@@ -28,7 +28,7 @@ void GaugeFreqMeter::setPosition(const float freq)
     if(freq != _currentFreq)
     {
         _currentFreq = freq;
-        unsigned int pos = (unsigned int)((freq - STEP_FREQ_MIN) * (STEP_STEP_MAX - STEP_SETP_MIN) / (STEP_FREQ_MAX - STEP_FREQ_MIN) + STEP_SETP_MIN);
+        unsigned int pos = (unsigned int)(((double)freq - (double)STEP_FREQ_MIN) * ((double)STEP_STEP_MAX - (double)STEP_SETP_MIN) / ((double)STEP_FREQ_MAX - (double)STEP_FREQ_MIN) + (double)STEP_SETP_MIN);
         if (pos < STEP_SETP_MIN) pos = STEP_SETP_MIN;
         if (pos > STEP_STEP_MAX) pos = STEP_STEP_MAX;
         Serial.print("new pos:");

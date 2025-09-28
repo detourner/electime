@@ -21,7 +21,7 @@ class SwitecX12 {
 
     private :
 
-        void stepTo(int position);
+        void stepTo(int position, int delayMicrosec);
         void step(int dir);
         void advance();
         

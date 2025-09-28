@@ -2,6 +2,7 @@
 #include "HardwareSerial.h"
 #include <Arduino.h>
 #include <WebSocketsClient.h>
+#include <ESPmDNS.h>
 #include <ArduinoJson.h>
 #include "HCMS39xx.h"
 #include "gauge_freq_meter.h"
@@ -172,7 +173,7 @@ void setup()
   display.begin();
   display.clear();
   display.displayUnblank();
-  display.print("START"); // Display "START" at startup
+  display.print("-CALIB.-"); // Display "START" at startup
 
 
   gaugeFreqMeter.reset(); // Reset the frequency gauge
@@ -180,14 +181,41 @@ void setup()
   webSocket.begin(websocketServer, websocketPort, "/"); // Start the WebSocket client
   webSocket.onEvent(webSocketEvent);
   webSocket.setReconnectInterval(5000); // Reconnect every 5 seconds if disconnected
+
 }
 
 void loop() 
 {
   static unsigned long lastFetch = 0;
   static unsigned long lastDisplayUpdate = 0;
+  static String serialBuffer = "";
 
-  
+  // Lecture des caractères reçus sur la liaison série
+  while (Serial.available()) {
+    char c = Serial.read();
+    if (c == '\n' || c == '\r') {
+      // Fin de ligne reçue, on traite la commande
+      serialBuffer.trim();
+      if (serialBuffer.startsWith("f=")) {
+        float freq = serialBuffer.substring(2).toFloat();
+        Serial.print("Commande série reçue, fréquence = ");
+        Serial.println(freq);
+        webSocket.disconnect(); // Arrêter le service WebSocket
+        gaugeFreqMeter.setPosition(freq); // Envoyer la valeur à l'aiguille
+      }
+
+      else if (serialBuffer.startsWith("p=")) {
+        int pos = serialBuffer.substring(2).toInt();
+        Serial.print("Commande série reçue, pos = ");
+        Serial.println(pos);
+        webSocket.disconnect(); // Arrêter le service WebSocket
+        gaugeFreqMeter.setStep(pos); // Envoyer la valeur à l'aiguille
+      }  
+      serialBuffer = ""; // Réinitialiser le buffer
+    } else {
+      serialBuffer += c;
+    }
+  }
 
   if (millis() - lastFetch > 500) { // Fetch data every 500ms
     if(wifiManager.checkWiFiConnection())

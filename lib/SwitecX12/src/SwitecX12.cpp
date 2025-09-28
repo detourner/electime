@@ -22,8 +22,9 @@ static unsigned short defaultAccelTable[][2] = {
 };
 
 const int stepPulseMicrosec = 1;
-const int resetStepMicrosec = 300;
+const int resetStepMicrosec = 500;
 #define DEFAULT_ACCEL_TABLE_SIZE (sizeof(defaultAccelTable)/sizeof(*defaultAccelTable))
+#define TIMER_INTERVAL_USEC 5000
 
 SwitecX12::SwitecX12()
 {
@@ -79,21 +80,21 @@ void SwitecX12::begin(unsigned char pinStep, unsigned char pinDir, unsigned char
     .name = "switecX12"
   };
   esp_timer_create(&periodic_timer_args, &periodic_timer);
-  esp_timer_start_periodic(periodic_timer, 500);
+  esp_timer_start_periodic(periodic_timer, TIMER_INTERVAL_USEC);
 }
 
 
 
 void SwitecX12::step(int dir)
 {
-  digitalWrite(pinDir, dir > 0 ? HIGH : LOW);
+  digitalWrite(pinDir, dir > 0 ? LOW : HIGH);
   digitalWrite(pinStep, HIGH);
   delayMicroseconds(stepPulseMicrosec);
   digitalWrite(pinStep, LOW);
   currentStep += dir;
 }
 
-void SwitecX12::stepTo(int position)
+void SwitecX12::stepTo(int position, int delayMicrosec)
 {
   int count;
   int dir;
@@ -108,14 +109,18 @@ void SwitecX12::stepTo(int position)
   }
   for (int i=0;i<count;i++) {
     step(dir);
-    delayMicroseconds(resetStepMicrosec);
+    delayMicroseconds(delayMicrosec);
   }
 }
 
 void SwitecX12::zero()
 {
   currentStep = steps - 1;
-  stepTo(0);
+  stepTo(0, resetStepMicrosec);
+  currentStep = 0;
+  stepTo(150, resetStepMicrosec);
+  currentStep = 180;
+  stepTo(0, resetStepMicrosec * 50);
   targetStep = 0;
   vel = 0;
   dir = 0;
@@ -196,7 +201,7 @@ void SwitecX12::setPosition(unsigned int pos)
     // reset the timer to avoid possible time overflow giving spurious deltas
     stopped = false;
     vel = 0;
-    esp_timer_start_periodic(periodic_timer, 500);
+    esp_timer_start_periodic(periodic_timer, TIMER_INTERVAL_USEC);
   }  
 }
 
