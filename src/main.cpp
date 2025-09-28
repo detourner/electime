@@ -14,8 +14,8 @@ const char* apSSID = "ElecTime";
 const char* apPassword = "12345678";
 
 // WebSocket server configuration
-const char* websocketServer = "192.168.1.22"; // Replace with your WebSocket server IP address
-const int websocketPort = 8765;               // WebSocket server port
+const char* serverName = "electime";  // Replace with your WebSocket server name
+const int websocketPort = 8765;       // WebSocket server port
 
 // --------------------- GLOBAL VARIABLES ---------------------
 
@@ -173,12 +173,29 @@ void setup()
   display.begin();
   display.clear();
   display.displayUnblank();
-  display.print("-CALIB.-"); // Display "START" at startup
+
+  display.print("- MDNS -"); 
+  while(mdns_init()!= ESP_OK){
+    delay(1000);
+    Serial.println("Starting MDNS...");
+  }
+ 
+  Serial.println("MDNS started");
+ 
+  IPAddress serverIp;
+  display.print("- HOST -"); 
+  while (serverIp.toString() == "0.0.0.0") 
+  {
+    Serial.println("Resolving host...");
+    delay(250);
+    serverIp = MDNS.queryHost(serverName);
+  }
 
 
+  display.print("-CALIB -"); // Display "START" at startup
   gaugeFreqMeter.reset(); // Reset the frequency gauge
 
-  webSocket.begin(websocketServer, websocketPort, "/"); // Start the WebSocket client
+  webSocket.begin(serverIp, websocketPort, "/"); // Start the WebSocket client
   webSocket.onEvent(webSocketEvent);
   webSocket.setReconnectInterval(5000); // Reconnect every 5 seconds if disconnected
 
