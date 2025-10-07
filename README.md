@@ -41,6 +41,11 @@ The device:
 - The analog gauge displays the frequency in real time.
 - The alphanumeric display shows the current time in HH:MM:SS format.
 
+## Example Implementation
+see https://www.detourner.fr/objects/06-l-heure-electrique/
+
+![001](001.jpg)
+
 ## Reference
 - https://wiki.seeedstudio.com/XIAO_ESP32C3_Getting_Started/
 - https://guy.carpenter.id.au/gaugette/2017/04/29/switecx25-quad-driver-tests/
