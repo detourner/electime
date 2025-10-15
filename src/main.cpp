@@ -151,6 +151,13 @@ void webSocketEvent(WStype_t type, uint8_t * payload, size_t length)
     case WStype_ERROR:	
       Serial.println("[WSc] WebSocket error detected!");
       break;	
+    
+    case WStype_PING:
+      Serial.println("[WSc] Ping received from server");
+      break;
+    case WStype_PONG:
+      Serial.println("[WSc] Pong received from server");
+      break;
 
     case WStype_FRAGMENT_TEXT_START:
     case WStype_FRAGMENT_BIN_START:
